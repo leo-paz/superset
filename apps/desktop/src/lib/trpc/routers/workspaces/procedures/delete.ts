@@ -17,6 +17,7 @@ import {
 	updateActiveWorkspaceIfRemoved,
 } from "../utils/db-helpers";
 import {
+	deleteLocalBranch,
 	hasUncommittedChanges,
 	hasUnpushedCommits,
 	worktreeExists,
@@ -148,7 +149,9 @@ export const createDeleteProcedures = () => {
 			}),
 
 		delete: publicProcedure
-			.input(z.object({ id: z.string() }))
+			.input(
+				z.object({ id: z.string(), deleteLocalBranch: z.boolean().optional() }),
+			)
 			.mutation(async ({ input }) => {
 				const workspace = getWorkspace(input.id);
 
@@ -193,17 +196,18 @@ export const createDeleteProcedures = () => {
 					.terminal.killByWorkspaceId(input.id);
 
 				let teardownPromise:
-					| Promise<{ success: boolean; error?: string }>
+					| Promise<{ success: boolean; error?: string; output?: string }>
 					| undefined;
 				if (workspace.type === "worktree" && workspace.worktreeId) {
 					worktree = getWorktree(workspace.worktreeId);
 
 					if (worktree && project && existsSync(worktree.path)) {
-						teardownPromise = runTeardown(
-							project.mainRepoPath,
-							worktree.path,
-							workspace.name,
-						);
+						teardownPromise = runTeardown({
+							mainRepoPath: project.mainRepoPath,
+							worktreePath: worktree.path,
+							workspaceName: workspace.name,
+							projectName: project.name,
+						});
 					} else {
 						console.warn(
 							`[workspace/delete] Skipping teardown: worktree=${!!worktree}, project=${!!project}, pathExists=${worktree ? existsSync(worktree.path) : "N/A"}`,
@@ -229,6 +233,7 @@ export const createDeleteProcedures = () => {
 					return {
 						success: false,
 						error: `Teardown failed: ${teardownResult.error}`,
+						output: teardownResult.output,
 					};
 				}
 
@@ -246,6 +251,20 @@ export const createDeleteProcedures = () => {
 						}
 					} finally {
 						workspaceInitManager.releaseProjectLock(project.id);
+					}
+
+					if (input.deleteLocalBranch && workspace.branch) {
+						try {
+							await deleteLocalBranch({
+								mainRepoPath: project.mainRepoPath,
+								branch: workspace.branch,
+							});
+						} catch (error) {
+							console.error(
+								`[workspace/delete] Branch cleanup failed (non-blocking):`,
+								error instanceof Error ? error.message : String(error),
+							);
+						}
 					}
 				}
 
@@ -407,15 +426,17 @@ export const createDeleteProcedures = () => {
 					);
 
 					if (exists) {
-						const teardownResult = await runTeardown(
-							project.mainRepoPath,
-							worktree.path,
-							worktree.branch,
-						);
+						const teardownResult = await runTeardown({
+							mainRepoPath: project.mainRepoPath,
+							worktreePath: worktree.path,
+							workspaceName: worktree.branch,
+							projectName: project.name,
+						});
 						if (!teardownResult.success) {
 							return {
 								success: false,
 								error: `Teardown failed: ${teardownResult.error}`,
+								output: teardownResult.output,
 							};
 						}
 					}

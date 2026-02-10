@@ -21,6 +21,7 @@ export const SETTING_ITEM_ID = {
 	KEYBOARD_SHORTCUTS: "keyboard-shortcuts",
 
 	BEHAVIOR_CONFIRM_QUIT: "behavior-confirm-quit",
+	BEHAVIOR_DELETE_LOCAL_BRANCH: "behavior-delete-local-branch",
 	BEHAVIOR_BRANCH_PREFIX: "behavior-branch-prefix",
 	BEHAVIOR_TELEMETRY: "behavior-telemetry",
 
@@ -309,6 +310,24 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 		],
 	},
 	{
+		id: SETTING_ITEM_ID.BEHAVIOR_DELETE_LOCAL_BRANCH,
+		section: "behavior",
+		title: "Delete local branch on workspace removal",
+		description:
+			"Also delete the local git branch when deleting a worktree workspace",
+		keywords: [
+			"features",
+			"delete",
+			"branch",
+			"local",
+			"worktree",
+			"workspace",
+			"remove",
+			"cleanup",
+			"git",
+		],
+	},
+	{
 		id: SETTING_ITEM_ID.BEHAVIOR_BRANCH_PREFIX,
 		section: "behavior",
 		title: "Branch Prefix",
@@ -386,8 +405,9 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 	{
 		id: SETTING_ITEM_ID.TERMINAL_AUTO_APPLY_PRESET,
 		section: "terminal",
-		title: "Auto-apply Default Preset",
-		description: "Automatically apply default preset when creating workspaces",
+		title: "Auto-Apply Default Preset",
+		description:
+			"Automatically apply the workspace creation preset when creating new workspaces",
 		keywords: [
 			"terminal",
 			"preset",

@@ -68,6 +68,7 @@ export interface TabsStore extends TabsState {
 		workspaceId: string,
 		options?: AddTabOptions,
 	) => { tabId: string; paneId: string };
+	addChatTab: (workspaceId: string) => { tabId: string; paneId: string };
 	addTabWithMultiplePanes: (
 		workspaceId: string,
 		options: AddTabWithMultiplePanesOptions,
@@ -98,6 +99,7 @@ export interface TabsStore extends TabsState {
 	setFocusedPane: (tabId: string, paneId: string) => void;
 	markPaneAsUsed: (paneId: string) => void;
 	setPaneStatus: (paneId: string, status: PaneStatus) => void;
+	setPaneName: (paneId: string, name: string) => void;
 	clearWorkspaceAttentionStatus: (workspaceId: string) => void;
 	updatePaneCwd: (
 		paneId: string,
@@ -132,6 +134,10 @@ export interface TabsStore extends TabsState {
 	// Move operations
 	movePaneToTab: (paneId: string, targetTabId: string) => void;
 	movePaneToNewTab: (paneId: string) => string;
+
+	// Chat operations
+	/** Switch a chat pane to a different session */
+	switchChatSession: (paneId: string, sessionId: string) => void;
 
 	// Query helpers
 	getTabsByWorkspace: (workspaceId: string) => Tab[];

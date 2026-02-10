@@ -13,6 +13,7 @@ import type {
 import {
 	buildMultiPaneLayout,
 	type CreatePaneOptions,
+	createChatTabWithPane,
 	createFileViewerPane,
 	createPane,
 	createTabWithPane,
@@ -81,6 +82,15 @@ const findNextTab = (state: TabsState, tabIdToClose: string): string | null => {
 	return workspaceTabs[0]?.id || null;
 };
 
+const deriveTabName = (
+	panes: Record<string, { tabId: string; name: string }>,
+	tabId: string,
+): string => {
+	const tabPanes = Object.values(panes).filter((p) => p.tabId === tabId);
+	if (tabPanes.length === 1) return tabPanes[0].name;
+	return `Multiple panes (${tabPanes.length})`;
+};
+
 export const useTabsStore = create<TabsStore>()(
 	devtools(
 		persist(
@@ -100,6 +110,40 @@ export const useTabsStore = create<TabsStore>()(
 						state.tabs,
 						options,
 					);
+
+					const currentActiveId = state.activeTabIds[workspaceId];
+					const historyStack = state.tabHistoryStacks[workspaceId] || [];
+					const newHistoryStack = currentActiveId
+						? [
+								currentActiveId,
+								...historyStack.filter((id) => id !== currentActiveId),
+							]
+						: historyStack;
+
+					set({
+						tabs: [...state.tabs, tab],
+						panes: { ...state.panes, [pane.id]: pane },
+						activeTabIds: {
+							...state.activeTabIds,
+							[workspaceId]: tab.id,
+						},
+						focusedPaneIds: {
+							...state.focusedPaneIds,
+							[tab.id]: pane.id,
+						},
+						tabHistoryStacks: {
+							...state.tabHistoryStacks,
+							[workspaceId]: newHistoryStack,
+						},
+					});
+
+					return { tabId: tab.id, paneId: pane.id };
+				},
+
+				addChatTab: (workspaceId: string) => {
+					const state = get();
+
+					const { tab, pane } = createChatTabWithPane(workspaceId, state.tabs);
 
 					const currentActiveId = state.activeTabIds[workspaceId];
 					const historyStack = state.tabHistoryStacks[workspaceId] || [];
@@ -424,11 +468,14 @@ export const useTabsStore = create<TabsStore>()(
 						splitPercentage: 50,
 					};
 
+					const newPanes = { ...state.panes, [newPane.id]: newPane };
+					const tabName = deriveTabName(newPanes, tabId);
+
 					set({
 						tabs: state.tabs.map((t) =>
-							t.id === tabId ? { ...t, layout: newLayout } : t,
+							t.id === tabId ? { ...t, layout: newLayout, name: tabName } : t,
 						),
-						panes: { ...state.panes, [newPane.id]: newPane },
+						panes: newPanes,
 						focusedPaneIds: {
 							...state.focusedPaneIds,
 							[tabId]: newPane.id,
@@ -466,9 +513,11 @@ export const useTabsStore = create<TabsStore>()(
 						panesRecord[pane.id] = pane;
 					}
 
+					const tabName = deriveTabName(panesRecord, tabId);
+
 					set({
 						tabs: state.tabs.map((t) =>
-							t.id === tabId ? { ...t, layout: newLayout } : t,
+							t.id === tabId ? { ...t, layout: newLayout, name: tabName } : t,
 						),
 						panes: panesRecord,
 						focusedPaneIds: {
@@ -642,11 +691,16 @@ export const useTabsStore = create<TabsStore>()(
 						splitPercentage: 50,
 					};
 
+					const newPanes = { ...state.panes, [newPane.id]: newPane };
+					const tabName = deriveTabName(newPanes, activeTab.id);
+
 					set({
 						tabs: state.tabs.map((t) =>
-							t.id === activeTab.id ? { ...t, layout: newLayout } : t,
+							t.id === activeTab.id
+								? { ...t, layout: newLayout, name: tabName }
+								: t,
 						),
-						panes: { ...state.panes, [newPane.id]: newPane },
+						panes: newPanes,
 						focusedPaneIds: {
 							...state.focusedPaneIds,
 							[activeTab.id]: newPane.id,
@@ -696,9 +750,11 @@ export const useTabsStore = create<TabsStore>()(
 						};
 					}
 
+					const tabName = deriveTabName(newPanes, tab.id);
+
 					set({
 						tabs: state.tabs.map((t) =>
-							t.id === tab.id ? { ...t, layout: newLayout } : t,
+							t.id === tab.id ? { ...t, layout: newLayout, name: tabName } : t,
 						),
 						panes: newPanes,
 						focusedPaneIds: newFocusedPaneIds,
@@ -711,6 +767,10 @@ export const useTabsStore = create<TabsStore>()(
 					if (!pane || pane.tabId !== tabId) return;
 
 					set({
+						panes: {
+							...state.panes,
+							[paneId]: { ...pane, status: "idle" },
+						},
 						focusedPaneIds: {
 							...state.focusedPaneIds,
 							[tabId]: paneId,
@@ -741,6 +801,25 @@ export const useTabsStore = create<TabsStore>()(
 							...state.panes,
 							[paneId]: { ...pane, status },
 						},
+					});
+				},
+
+				setPaneName: (paneId, name) => {
+					const state = get();
+					const pane = state.panes[paneId];
+					if (!pane || pane.name === name) return;
+
+					const newPanes = {
+						...state.panes,
+						[paneId]: { ...pane, name },
+					};
+					const tabName = deriveTabName(newPanes, pane.tabId);
+
+					set({
+						panes: newPanes,
+						tabs: state.tabs.map((t) =>
+							t.id === pane.tabId ? { ...t, name: tabName } : t,
+						),
 					});
 				},
 
@@ -879,11 +958,14 @@ export const useTabsStore = create<TabsStore>()(
 						};
 					}
 
+					const newPanes = { ...state.panes, [newPane.id]: newPane };
+					const tabName = deriveTabName(newPanes, tabId);
+
 					set({
 						tabs: state.tabs.map((t) =>
-							t.id === tabId ? { ...t, layout: newLayout } : t,
+							t.id === tabId ? { ...t, layout: newLayout, name: tabName } : t,
 						),
-						panes: { ...state.panes, [newPane.id]: newPane },
+						panes: newPanes,
 						focusedPaneIds: {
 							...state.focusedPaneIds,
 							[tabId]: newPane.id,
@@ -928,11 +1010,14 @@ export const useTabsStore = create<TabsStore>()(
 						};
 					}
 
+					const newPanes = { ...state.panes, [newPane.id]: newPane };
+					const tabName = deriveTabName(newPanes, tabId);
+
 					set({
 						tabs: state.tabs.map((t) =>
-							t.id === tabId ? { ...t, layout: newLayout } : t,
+							t.id === tabId ? { ...t, layout: newLayout, name: tabName } : t,
 						),
-						panes: { ...state.panes, [newPane.id]: newPane },
+						panes: newPanes,
 						focusedPaneIds: {
 							...state.focusedPaneIds,
 							[tabId]: newPane.id,
@@ -949,8 +1034,21 @@ export const useTabsStore = create<TabsStore>()(
 				},
 
 				movePaneToTab: (paneId, targetTabId) => {
-					const result = movePaneToTab(get(), paneId, targetTabId);
-					if (result) set(result);
+					const state = get();
+					const pane = state.panes[paneId];
+					const result = movePaneToTab(state, paneId, targetTabId);
+					if (!result) return;
+
+					// Re-derive tab names for affected tabs
+					const sourceTabId = pane?.tabId;
+					result.tabs = result.tabs.map((t) => {
+						if (t.id === targetTabId || t.id === sourceTabId) {
+							return { ...t, name: deriveTabName(result.panes, t.id) };
+						}
+						return t;
+					});
+
+					set(result);
 				},
 
 				movePaneToNewTab: (paneId) => {
@@ -967,8 +1065,36 @@ export const useTabsStore = create<TabsStore>()(
 					const moveResult = movePaneToNewTab(state, paneId);
 					if (!moveResult) return "";
 
+					// Re-derive tab names for affected tabs
+					moveResult.result.tabs = moveResult.result.tabs.map((t) => {
+						if (t.id === moveResult.newTabId || t.id === sourceTab.id) {
+							return {
+								...t,
+								name: deriveTabName(moveResult.result.panes, t.id),
+							};
+						}
+						return t;
+					});
+
 					set(moveResult.result);
 					return moveResult.newTabId;
+				},
+
+				// Chat operations
+				switchChatSession: (paneId, sessionId) => {
+					const state = get();
+					const pane = state.panes[paneId];
+					if (!pane?.chat) return;
+
+					set({
+						panes: {
+							...state.panes,
+							[paneId]: {
+								...pane,
+								chat: { sessionId },
+							},
+						},
+					});
 				},
 
 				// Query helpers

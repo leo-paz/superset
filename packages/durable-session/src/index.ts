@@ -95,6 +95,7 @@ export type {
 	AgentSpec,
 	// Agent types
 	AgentTrigger,
+	AnswerResponseInput,
 	ApprovalResponseInput,
 	// Session types
 	ConnectionStatus,
@@ -119,6 +120,7 @@ export type {
 	// Input types
 	ToolResultInput,
 	ToolResultPart,
+	UIMessage,
 } from "./types";
 
 // ============================================================================
@@ -179,3 +181,9 @@ export {
 	messageRowToUIMessage,
 	parseChunk,
 } from "./materialize";
+
+// ============================================================================
+// Stream Utilities
+// ============================================================================
+
+export { createTextSegmentEnricher } from "./enrich-text-segments";

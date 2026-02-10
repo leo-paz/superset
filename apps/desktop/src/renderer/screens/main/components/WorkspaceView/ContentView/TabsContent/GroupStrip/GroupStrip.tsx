@@ -1,3 +1,4 @@
+import { FEATURE_FLAGS } from "@superset/shared/constants";
 import { Button } from "@superset/ui/button";
 import {
 	DropdownMenu,
@@ -8,14 +9,16 @@ import {
 } from "@superset/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { useNavigate, useParams } from "@tanstack/react-router";
+import { useFeatureFlagEnabled } from "posthog-js/react";
 import { useCallback, useMemo, useState } from "react";
+import { BsTerminalPlus } from "react-icons/bs";
 import {
 	HiMiniChevronDown,
 	HiMiniCog6Tooth,
 	HiMiniCommandLine,
-	HiMiniPlus,
 	HiStar,
 } from "react-icons/hi2";
+import { TbMessageCirclePlus } from "react-icons/tb";
 import {
 	getPresetIcon,
 	useIsDarkTheme,
@@ -41,6 +44,7 @@ export function GroupStrip() {
 	const activeTabIds = useTabsStore((s) => s.activeTabIds);
 	const tabHistoryStacks = useTabsStore((s) => s.tabHistoryStacks);
 	const { addTab, openPreset } = useTabsWithPresets();
+	const addChatTab = useTabsStore((s) => s.addChatTab);
 	const renameTab = useTabsStore((s) => s.renameTab);
 	const removeTab = useTabsStore((s) => s.removeTab);
 	const setActiveTab = useTabsStore((s) => s.setActiveTab);
@@ -48,6 +52,7 @@ export function GroupStrip() {
 	const movePaneToNewTab = useTabsStore((s) => s.movePaneToNewTab);
 	const reorderTabs = useTabsStore((s) => s.reorderTabs);
 
+	const hasAiChat = useFeatureFlagEnabled(FEATURE_FLAGS.AI_CHAT);
 	const { presets } = usePresets();
 	const isDark = useIsDarkTheme();
 	const navigate = useNavigate();
@@ -87,6 +92,11 @@ export function GroupStrip() {
 	const handleAddGroup = () => {
 		if (!activeWorkspaceId) return;
 		addTab(activeWorkspaceId);
+	};
+
+	const handleAddChat = () => {
+		if (!activeWorkspaceId) return;
+		addChatTab(activeWorkspaceId);
 	};
 
 	const handleSelectPreset = (preset: Parameters<typeof openPreset>[1]) => {
@@ -185,23 +195,43 @@ export function GroupStrip() {
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
-									variant="ghost"
-									size="icon"
-									className="size-7 rounded-r-none pl-2"
+									variant="outline"
+									className="h-7 rounded-r-none pl-2 pr-1.5 gap-1 text-xs"
 									onClick={handleAddGroup}
 								>
-									<HiMiniPlus className="size-4" />
+									<BsTerminalPlus className="size-3.5" />
+									Terminal
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent side="top" sideOffset={4}>
-								<HotkeyTooltipContent label="New Tab" hotkeyId="NEW_GROUP" />
+								<HotkeyTooltipContent
+									label="New Terminal"
+									hotkeyId="NEW_GROUP"
+								/>
 							</TooltipContent>
 						</Tooltip>
+						{hasAiChat && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="outline"
+										className="h-7 rounded-none border-l-0 px-1.5 gap-1 text-xs"
+										onClick={handleAddChat}
+									>
+										<TbMessageCirclePlus className="size-3.5" />
+										Chat
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="top" sideOffset={4}>
+									<HotkeyTooltipContent label="New Chat" hotkeyId="NEW_CHAT" />
+								</TooltipContent>
+							</Tooltip>
+						)}
 						<DropdownMenuTrigger asChild>
 							<Button
-								variant="ghost"
+								variant="outline"
 								size="icon"
-								className="size-7 rounded-l-none px-1"
+								className="size-7 rounded-l-none border-l-0 px-1"
 							>
 								<HiMiniChevronDown className="size-3" />
 							</Button>
